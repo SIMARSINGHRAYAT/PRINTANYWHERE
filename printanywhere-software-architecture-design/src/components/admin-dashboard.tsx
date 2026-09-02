@@ -39,21 +39,36 @@ export function AdminDashboard() {
   const [message, setMessage] = useState<string>("");
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [permissionStateLoaded, setPermissionStateLoaded] = useState(false);
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   async function loadData() {
-    const [availableRes, configuredRes, jobsRes] = await Promise.all([
-      fetch("/api/admin/printers/available", { cache: "no-store" }),
-      fetch("/api/admin/printers", { cache: "no-store" }),
-      fetch("/api/admin/jobs", { cache: "no-store" }),
-    ]);
+    setIsLoading(true);
+    try {
+      const [availableRes, configuredRes, jobsRes] = await Promise.allSettled([
+        fetch("/api/admin/printers/available", { cache: "no-store" }),
+        fetch("/api/admin/printers", { cache: "no-store" }),
+        fetch("/api/admin/jobs", { cache: "no-store" }),
+      ]);
 
-    const availableData = (await availableRes.json()) as { printers: DiscoveredPrinter[] };
-    const configuredData = (await configuredRes.json()) as { printers: ConfiguredPrinter[] };
-    const jobsData = (await jobsRes.json()) as { jobs: PrintJob[] };
+      if (availableRes.status === "fulfilled" && availableRes.value.ok) {
+        const availableData = (await availableRes.value.json()) as { printers: DiscoveredPrinter[] };
+        setAvailable(availableData.printers ?? []);
+      }
 
-    setAvailable(availableData.printers ?? []);
-    setConfigured(configuredData.printers ?? []);
-    setJobs(jobsData.jobs ?? []);
+      if (configuredRes.status !== "fulfilled" || !configuredRes.value.ok || jobsRes.status !== "fulfilled" || !jobsRes.value.ok) {
+        throw new Error("Printer discovery is ready, but the database is unavailable. Check DATABASE_URL and migrations.");
+      }
+
+      const configuredData = (await configuredRes.value.json()) as { printers: ConfiguredPrinter[] };
+      const jobsData = (await jobsRes.value.json()) as { jobs: PrintJob[] };
+      setConfigured(configuredData.printers ?? []);
+      setJobs(jobsData.jobs ?? []);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to load printer data.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -82,6 +97,7 @@ export function AdminDashboard() {
   function allowPrinterConnection() {
     localStorage.setItem(CONSENT_KEY, "true");
     setPermissionGranted(true);
+    setPermissionDialogOpen(false);
     setMessage("Printer connection approved. You can now manage printers.");
   }
 
@@ -103,22 +119,26 @@ export function AdminDashboard() {
 
     setMessage("Adding printer...");
 
-    const res = await fetch("/api/admin/printers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ windowsPrinterName: selectedPrinter }),
-    });
+    try {
+      const res = await fetch("/api/admin/printers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ windowsPrinterName: selectedPrinter }),
+      });
 
-    const data = (await res.json()) as { error?: string; alreadyExists?: boolean };
+      const data = (await res.json()) as { error?: string; alreadyExists?: boolean };
 
-    if (!res.ok) {
-      setMessage(data.error ?? "Unable to add printer.");
-      return;
+      if (!res.ok) {
+        setMessage(data.error ?? "Unable to add printer.");
+        return;
+      }
+
+      setMessage(data.alreadyExists ? "Printer already configured." : "Printer added successfully.");
+      setSelectedPrinter("");
+      await loadData();
+    } catch {
+      setMessage("Network error while adding printer.");
     }
-
-    setMessage(data.alreadyExists ? "Printer already configured." : "Printer added successfully.");
-    setSelectedPrinter("");
-    await loadData();
   }
 
   async function generateQr(printerId: string, displayName: string) {
@@ -126,22 +146,26 @@ export function AdminDashboard() {
 
     setMessage("Generating secure QR code...");
 
-    const res = await fetch(`/api/admin/printers/${printerId}/pairing`, {
-      method: "POST",
-    });
+    try {
+      const res = await fetch(`/api/admin/printers/${printerId}/pairing`, {
+        method: "POST",
+      });
 
-    const data = (await res.json()) as { error?: string; pairing?: { url: string; qrDataUrl: string } };
+      const data = (await res.json()) as { error?: string; pairing?: { url: string; qrDataUrl: string } };
 
-    if (!res.ok || !data.pairing) {
-      setMessage(data.error ?? "Unable to generate QR code.");
-      return;
+      if (!res.ok || !data.pairing) {
+        setMessage(data.error ?? "Unable to generate QR code.");
+        return;
+      }
+
+      setActivePrinterName(displayName);
+      setPairingUrl(data.pairing.url);
+      setPairingQr(data.pairing.qrDataUrl);
+      setMessage("QR code generated.");
+      await loadData();
+    } catch {
+      setMessage("Network error while generating QR code.");
     }
-
-    setActivePrinterName(displayName);
-    setPairingUrl(data.pairing.url);
-    setPairingQr(data.pairing.qrDataUrl);
-    setMessage("QR code generated.");
-    await loadData();
   }
 
   async function printTestPage(printerId: string) {
@@ -183,7 +207,7 @@ export function AdminDashboard() {
             <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={allowPrinterConnection}
+                onClick={() => setPermissionDialogOpen(true)}
                 className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400"
               >
                 Allow Printer Connection
@@ -227,9 +251,14 @@ export function AdminDashboard() {
                 disabled={!canAdd}
                 className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-slate-500"
               >
-                + Add Printer
+                {isLoading ? "Loading..." : "+ Add Printer"}
               </button>
             </div>
+            {permissionGranted && !isLoading && available.length === 0 ? (
+              <p className="mt-3 text-sm text-amber-300">
+                No printers found. Set PRINTANYWHERE_AVAILABLE_PRINTERS or connect the Windows gateway.
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-6">
@@ -300,6 +329,38 @@ export function AdminDashboard() {
           {message ? <p className="rounded-lg bg-white/10 px-3 py-2 text-sm text-white">{message}</p> : null}
         </aside>
       </div>
+
+      {permissionDialogOpen ? (
+        <div className="fixed inset-0 z-10 grid place-items-center bg-black/70 p-4" role="presentation">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="permission-dialog-title"
+            className="w-full max-w-md rounded-xl border border-white/15 bg-slate-950 p-6 shadow-2xl"
+          >
+            <h2 id="permission-dialog-title" className="text-xl font-semibold">Allow printer connection?</h2>
+            <p className="mt-3 text-sm text-slate-300">
+              PrintAnywhere will use the configured printer service to discover printers, create QR codes, and submit print jobs.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPermissionDialogOpen(false)}
+                className="rounded-lg border border-white/20 px-4 py-2 text-sm text-white"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={allowPrinterConnection}
+                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black"
+              >
+                Allow
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
