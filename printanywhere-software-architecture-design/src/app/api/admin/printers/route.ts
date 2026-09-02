@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "windowsPrinterName is required" }, { status: 400 });
   }
 
-  const available = discoverAvailablePrinters().find(
+  const available = (await discoverAvailablePrinters()).find(
     (printer) => printer.windowsPrinterName === body.windowsPrinterName,
   );
 
