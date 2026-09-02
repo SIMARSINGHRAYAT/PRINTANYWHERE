@@ -40,10 +40,11 @@ export function AdminDashboard() {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [permissionStateLoaded, setPermissionStateLoaded] = useState(false);
   const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAddingPrinter, setIsAddingPrinter] = useState(false);
 
   async function loadData() {
-    setIsLoading(true);
+    setIsRefreshing(true);
     try {
       const [availableRes, configuredRes, jobsRes] = await Promise.allSettled([
         fetch("/api/admin/printers/available", { cache: "no-store" }),
@@ -67,7 +68,7 @@ export function AdminDashboard() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to load printer data.");
     } finally {
-      setIsLoading(false);
+      setIsRefreshing(false);
     }
   }
 
@@ -115,8 +116,9 @@ export function AdminDashboard() {
   }
 
   async function addPrinter() {
-    if (!selectedPrinter || !permissionGranted) return;
+    if (!selectedPrinter || !permissionGranted || isAddingPrinter) return;
 
+    setIsAddingPrinter(true);
     setMessage("Adding printer...");
 
     try {
@@ -126,7 +128,11 @@ export function AdminDashboard() {
         body: JSON.stringify({ windowsPrinterName: selectedPrinter }),
       });
 
-      const data = (await res.json()) as { error?: string; alreadyExists?: boolean };
+      const data = (await res.json()) as {
+        error?: string;
+        alreadyExists?: boolean;
+        printer?: { id: string; displayName: string };
+      };
 
       if (!res.ok) {
         setMessage(data.error ?? "Unable to add printer.");
@@ -135,9 +141,15 @@ export function AdminDashboard() {
 
       setMessage(data.alreadyExists ? "Printer already configured." : "Printer added successfully.");
       setSelectedPrinter("");
-      await loadData();
+      if (data.printer) {
+        await generateQr(data.printer.id, data.printer.displayName);
+      } else {
+        await loadData();
+      }
     } catch {
       setMessage("Network error while adding printer.");
+    } finally {
+      setIsAddingPrinter(false);
     }
   }
 
@@ -248,13 +260,13 @@ export function AdminDashboard() {
               <button
                 type="button"
                 onClick={addPrinter}
-                disabled={!canAdd}
+                disabled={!canAdd || isAddingPrinter}
                 className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-slate-500"
               >
-                {isLoading ? "Loading..." : "+ Add Printer"}
+                {isAddingPrinter ? "Adding..." : "+ Add Printer"}
               </button>
             </div>
-            {permissionGranted && !isLoading && available.length === 0 ? (
+            {permissionGranted && !isRefreshing && available.length === 0 ? (
               <p className="mt-3 text-sm text-amber-300">
                 No real printers detected. Connect the Windows gateway to discover your USB printer.
               </p>
