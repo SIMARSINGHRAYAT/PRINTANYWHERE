@@ -57,17 +57,24 @@ export function AdminDashboard() {
   }
 
   useEffect(() => {
-    const saved = localStorage.getItem(CONSENT_KEY);
-    setPermissionGranted(saved === "true");
-    setPermissionStateLoaded(true);
+    const timer = window.setTimeout(() => {
+      const saved = localStorage.getItem(CONSENT_KEY);
+      setPermissionGranted(saved === "true");
+      setPermissionStateLoaded(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (!permissionGranted) return;
 
-    void loadData();
-    const timer = setInterval(() => void loadData(), 3000);
-    return () => clearInterval(timer);
+    const initialLoad = window.setTimeout(() => void loadData(), 0);
+    const refreshTimer = window.setInterval(() => void loadData(), 3000);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(refreshTimer);
+    };
   }, [permissionGranted]);
 
   const canAdd = useMemo(() => Boolean(selectedPrinter) && permissionGranted, [selectedPrinter, permissionGranted]);

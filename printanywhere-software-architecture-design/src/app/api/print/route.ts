@@ -17,6 +17,7 @@ import {
 } from "@/lib/printanywhere/temp-files";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   await initializeCleanupSubsystem();
@@ -91,9 +92,10 @@ export async function POST(request: Request) {
       updatedAt: new Date(),
     });
 
-    enqueuePrinterTask(printer.id, async () => {
+    const processing = enqueuePrinterTask(printer.id, async () => {
       await processPrintJob(jobId);
     });
+    await processing;
 
     secureLog("Job accepted", { jobId, printer: printer.id });
 

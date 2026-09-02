@@ -2,6 +2,14 @@
 
 Print anything. Anywhere. Without installing an app.
 
+## Deploy to Vercel
+
+Set the Vercel project root to this directory, then add `DATABASE_URL` as a production environment variable using a hosted PostgreSQL provider with SSL enabled. Deploy with the default Next.js settings.
+
+Before the first deploy, apply the schema from `migrations/0000_initial.sql` to the database. For later schema changes, run `npm run db:generate` locally and apply them with `npm run db:migrate` using the same `DATABASE_URL`.
+
+`PRINTANYWHERE_AVAILABLE_PRINTERS` is optional JSON used by the simulated discovery adapter. The current adapter simulates the Windows spooler; real Windows printer access requires the Windows desktop gateway described below and should not be expected from a Vercel function.
+
 ## What this implementation includes
 
 - **Customer web print flow** (`/p/:printerId?token=...`) with no login.
