@@ -256,7 +256,7 @@ export function AdminDashboard() {
             </div>
             {permissionGranted && !isLoading && available.length === 0 ? (
               <p className="mt-3 text-sm text-amber-300">
-                No printers found. Set PRINTANYWHERE_AVAILABLE_PRINTERS or connect the Windows gateway.
+                No real printers detected. Connect the Windows gateway to discover your USB printer.
               </p>
             ) : null}
           </div>

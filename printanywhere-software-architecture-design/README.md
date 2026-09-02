@@ -8,7 +8,9 @@ Set the Vercel project root to this directory, then add `DATABASE_URL` as a prod
 
 Before the first deploy, apply the schema from `migrations/0000_initial.sql` to the database. For later schema changes, run `npm run db:generate` locally and apply them with `npm run db:migrate` using the same `DATABASE_URL`.
 
-`PRINTANYWHERE_AVAILABLE_PRINTERS` is optional JSON used by the simulated discovery adapter. The current adapter simulates the Windows spooler; real Windows printer access requires the Windows desktop gateway described below and should not be expected from a Vercel function.
+`PRINTANYWHERE_AVAILABLE_PRINTERS` is optional JSON for development/testing only. It is not USB discovery. A Vercel function cannot see a USB printer connected to your Windows computer; real-time printer discovery and printing require the Windows desktop gateway described below.
+
+If the dashboard says the database is unavailable, `DATABASE_URL` is missing from the environment where the dashboard is running, the migration has not been applied, or the database cannot be reached. Vercel environment variables do not exist in a local `npm run dev` session unless you also create a local `.env.local` file.
 
 ## What this implementation includes
 
