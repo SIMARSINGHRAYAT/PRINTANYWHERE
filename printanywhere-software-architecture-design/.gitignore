@@ -5,3 +5,8 @@ node_modules/
 out/
 build/
 tsconfig.tsbuildinfo
+**/bin/
+**/obj/
+windows-gateway/publish/
+windows-gateway/package/
+windows-gateway/*.msix

@@ -55,6 +55,8 @@ It does **not** store document blobs or customer identity profiles.
 
 ## Windows desktop integration architecture
 
+The Windows gateway source and MSIX packaging files are in `windows-gateway/`. Build it with `windows-gateway/build-msix.ps1` on a Windows machine with the Windows SDK installed. The gateway discovers USB printers through the Windows spooler and prints locally. It must use an authenticated outbound relay or polling protocol to receive Vercel jobs; a public Vercel function cannot directly reach a private PC.
+
 This project provides the local web and gateway service foundation. For Microsoft Store compatible Windows deployment, host this Next.js service behind a WinUI 3 + Windows App SDK desktop shell/service component that:
 
 1. Enumerates real Windows spooler printers,
