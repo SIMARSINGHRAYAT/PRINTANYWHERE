@@ -5,13 +5,13 @@
     <DisplayName>PrintAnywhere Gateway</DisplayName>
     <PublisherDisplayName>PrintAnywhere</PublisherDisplayName>
     <Description>Local Windows printer gateway for PrintAnywhere.</Description>
-    <Logo>Assets\StoreLogo.svg</Logo>
+    <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Resources><Resource Language="en-us" /></Resources>
   <Dependencies><TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" /></Dependencies>
   <Applications>
     <Application Id="Gateway" Executable="PrintAnywhere.Gateway.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements AppListEntry="none" DisplayName="PrintAnywhere Gateway" Description="PrintAnywhere Gateway" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.svg" Square44x44Logo="Assets\Square44x44Logo.svg" />
+      <uap:VisualElements AppListEntry="none" DisplayName="PrintAnywhere Gateway" Description="PrintAnywhere Gateway" BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" />
     </Application>
   </Applications>
   <Capabilities><rescap:Capability Name="runFullTrust" /></Capabilities>
